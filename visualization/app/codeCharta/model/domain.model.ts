@@ -9,6 +9,7 @@ export type Scaling = {
 
 export enum LayoutAlgorithm {
     SquarifiedTreeMap = "Squarified TreeMap",
+    AreaTrueTreemap = "Area-True Treemap",
     StreetMap = "StreetMap",
     TreeMapStreet = "TreeMapStreet",
     Sunburst = "Sunburst",

@@ -3,6 +3,7 @@
 // extracted out of features/codeMap into this top-level layer so sibling features (viewCube, labelSettings,
 // sidebarInspector, scenarios, …) consume them WITHOUT a bidirectional feature cycle through codeMap.
 
+export { createAreaTrueTreemapNodes } from "./algorithm/areaTrueTreemapLayout/areaTrueTreemapGenerator"
 export { StreetLayoutGenerator } from "./algorithm/streetLayout/streetLayoutGenerator"
 export { createTreemapNodes } from "./algorithm/treeMapLayout/treeMapGenerator"
 export { treeMapSize } from "./algorithm/treeMapLayout/treeMapHelper"

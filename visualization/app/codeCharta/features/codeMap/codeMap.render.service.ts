@@ -7,6 +7,7 @@ import { labelsPerMapActiveSelector, nodeMetricDataSelector } from "../../render
 import {
     CodeMapMesh,
     ColorCategoryCountsStore,
+    createAreaTrueTreemapNodes,
     createTreemapNodes,
     StreetLayoutGenerator,
     ThreeSceneService,
@@ -137,6 +138,8 @@ export class CodeMapRenderService implements OnDestroy, RendererEngine {
                 return StreetLayoutGenerator.createStreetLayoutNodes(map, state, nodeMetricData, excludeMatcherSelector(state), deltaState)
             case LayoutAlgorithm.SquarifiedTreeMap:
                 return createTreemapNodes(map, state, nodeMetricData, deltaState)
+            case LayoutAlgorithm.AreaTrueTreemap:
+                return createAreaTrueTreemapNodes(map, state, nodeMetricData, deltaState)
             default:
                 return []
         }
