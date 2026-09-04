@@ -330,6 +330,16 @@ describe("ThreeSceneService", () => {
             expect(floorLabelDrawerSpy).toHaveBeenCalled()
         })
 
+        it("should add floor labels for the area-true treemap layout", () => {
+            threeSceneService["notifyMapMeshChanged"] = jest.fn()
+            const areaTrueFloorLabelDrawerSpy = jest.spyOn(FloorLabelDrawer.prototype, "draw").mockReturnValue([])
+
+            store.dispatch(setLayoutAlgorithm({ value: LayoutAlgorithm.AreaTrueTreemap }))
+            threeSceneService.setMapMesh(TEST_NODES, new CodeMapMesh(TEST_NODES, state.getValue(), false))
+
+            expect(areaTrueFloorLabelDrawerSpy).toHaveBeenCalled()
+        })
+
         it("should not add floor labels if no root node was found", () => {
             threeSceneService["notifyMapMeshChanged"] = jest.fn()
             const floorLabelDrawerSpy = jest.spyOn(FloorLabelDrawer.prototype, "draw").mockReturnValue([])

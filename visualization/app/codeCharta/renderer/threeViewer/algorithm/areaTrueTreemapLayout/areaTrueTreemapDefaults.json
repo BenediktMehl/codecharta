@@ -1,0 +1,11 @@
+{
+  "margin": 0.015,
+  "aspectRatio": 1.618,
+  "collapseFolders": false,
+  "sorting": "descending",
+  "labels": {
+    "topLevels": 3,
+    "sizeRatio": 0.05,
+    "position": "right"
+  }
+}

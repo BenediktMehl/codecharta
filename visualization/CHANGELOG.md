@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/)
 
 - **Flatten or exclude files by a metric**: the explorer's search menu and its Flattened and Hidden lists can add a rule like `mcc > 10`, which takes every file above that value off the map, with a distribution of the metric and a live count of what the rule catches while you set it, and scenarios save these rules with their filters.
 - **Clear a whole list of rules**: the Flattened and Hidden lists each clear in one step, and **Reset filters** in Global Configuration empties both without touching the metrics, colors or camera that **Reset map to default** would also discard. Both say what they are about to remove and ask first.
+- **Area-True Treemap**: a new map layout that packs the folders by their true area and keeps the buildings in the proportions the Squarified TreeMap gives them.
 
 ## [2.2.0] - 2026-09-09
 

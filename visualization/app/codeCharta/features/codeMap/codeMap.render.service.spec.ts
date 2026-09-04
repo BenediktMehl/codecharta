@@ -18,7 +18,7 @@ import {
     TEST_NODES,
     VALID_EDGES
 } from "../../mocks/dataMocks"
-import { CcState, CodeMapNode, LabelMode, Node } from "../../model/codeCharta.model"
+import { CcState, CodeMapNode, LabelMode, LayoutAlgorithm, Node } from "../../model/codeCharta.model"
 import { metricDataSelector } from "../../renderer/renderModel/accumulatedData/metricData/metricData.selector"
 import { nodeMetricDataSelector } from "../../renderer/renderModel/nodeMetricData/nodeMetricData.selector"
 import { ColorCategoryCountsStore } from "../../renderer/threeViewer/stores/colorCategoryCounts.store"
@@ -281,6 +281,28 @@ describe("codeMapRenderService", () => {
             const sortedNodes: Node[] = codeMapRenderService["getNodes"](map)
 
             expect(sortedNodes).toMatchSnapshot()
+        })
+
+        it("should get Nodes when the area-true treemap layout is selected", () => {
+            // Arrange
+            store.dispatch(
+                setState({
+                    value: {
+                        ...state.getValue(),
+                        mapState: { ...state.getValue().mapState, layoutAlgorithm: LayoutAlgorithm.AreaTrueTreemap }
+                    }
+                })
+            )
+
+            // Act
+            const nodes: Node[] = codeMapRenderService["getNodes"](map)
+
+            // Assert
+            expect(nodes.length).toBeGreaterThan(0)
+            for (const node of nodes) {
+                expect(node.width).toBeGreaterThan(0)
+                expect(node.length).toBeGreaterThan(0)
+            }
         })
     })
 
