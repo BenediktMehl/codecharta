@@ -2,7 +2,16 @@ import { Vector3 } from "three"
 import { CcState, CodeMapNode, Node } from "../../../../model/codeCharta.model"
 import { getMapResolutionScaleFactor, getMarkingColor, isLeaf } from "../../../../util/codeMapHelper"
 import { selectedColorMetricDataSelector } from "../../../renderModel/renderModel.facade"
-import { getBuildingColor, getIncomingEdgePoint, isNodeFlat, isVisible, TreeMapHelper, treeMapSize } from "../treeMapLayout/treeMapHelper"
+import {
+    FOLDER_HEIGHT,
+    getBuildingColor,
+    getHeightValue,
+    getIncomingEdgePoint,
+    isNodeFlat,
+    isVisible,
+    resolveHeightValue,
+    treeMapSize
+} from "./treeMapRules"
 
 /**
  * Minimal rectangle shape produced by the area-true-treemap package (and synthesised for the
@@ -18,10 +27,9 @@ export interface AreaTrueTreemapRect {
 }
 
 /**
- * Translates a laid-out rectangle into the same `Node` shape used by the existing TreeMap
- * builder (`TreeMapHelper.buildNodeFrom`), reusing its height/color/edge-point logic. The only
- * difference is the input: instead of a d3 `HierarchyRectangularNode` this takes a plain
- * rectangle plus the original `CodeMapNode`.
+ * Translates a laid-out rectangle into the same `Node` shape the Squarified TreeMap builds,
+ * reusing its height/color/edge-point logic. The only difference is the input: instead of a d3
+ * `HierarchyRectangularNode` this takes a plain rectangle plus the original `CodeMapNode`.
  */
 export function buildNodeFrom(
     rect: AreaTrueTreemapRect,
@@ -34,16 +42,14 @@ export function buildNodeFrom(
     const mapSizeResolutionScaling = getMapResolutionScaleFactor(state.files)
     const isNodeLeaf = isLeaf(data)
     const flattened = isNodeFlat(data, state)
-    const heightValue = TreeMapHelper.getHeightValue(state, data, maxHeight, flattened)
+    const heightValue = getHeightValue(state, data, maxHeight, flattened)
     const depth = data.path.split("/").length - 2
-    const height = isNodeLeaf
-        ? TreeMapHelper.resolveHeightValue(heightValue, heightScale, data, state) * mapSizeResolutionScaling
-        : TreeMapHelper.FOLDER_HEIGHT
+    const height = isNodeLeaf ? resolveHeightValue(heightValue, heightScale, data, state) * mapSizeResolutionScaling : FOLDER_HEIGHT
     const width = rect.width
     const length = rect.height
     const x0 = rect.x
     const y0 = rect.y
-    const z0 = rect.depth * TreeMapHelper.FOLDER_HEIGHT
+    const z0 = rect.depth * FOLDER_HEIGHT
     const heightDelta = (data.deltas?.[state.mapState.heightMetric] ?? 0) * heightScale * mapSizeResolutionScaling
     const edgePointHeight = height + (heightDelta < 0 ? Math.abs(heightDelta) : 0)
 
