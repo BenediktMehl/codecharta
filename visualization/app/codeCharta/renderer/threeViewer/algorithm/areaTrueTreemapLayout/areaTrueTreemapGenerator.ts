@@ -1,101 +1,176 @@
-import { LabelPosition, SortingOption, TreemapConfigBuilder, TreemapLayout, type TreeNode } from "area-true-treemap"
+import { DEFAULT_FLOOR_LABEL_CONFIG, getFloorLabelPadding, hierarchy, OrderOption, SortingOption, treemap } from "area-true-treemap"
 import { CcState, CodeMapNode, Node, NodeMetricData } from "../../../../model/codeCharta.model"
-import { getMapResolutionScaleFactor } from "../../../../util/codeMapHelper"
-import { calculateAreaValue } from "../treeMapLayout/treeMapGenerator"
+import { getMapResolutionScaleFactor, isLeaf } from "../../../../util/codeMapHelper"
+import {
+    calculateAreaValue,
+    DEFAULT_PADDING_FLOOR_LABEL_FROM_LEVEL_1,
+    DEFAULT_PADDING_FLOOR_LABEL_FROM_LEVEL_2,
+    HIERARCHY_LEVELS_WITH_LABLES_UPPER_BOUNDARY
+} from "../treeMapLayout/treeMapGenerator"
 import { treeMapSize } from "../treeMapLayout/treeMapHelper"
-import defaultsJson from "./areaTrueTreemapDefaults.json"
 import { buildNodeFrom } from "./areaTrueTreemapHelper"
 
 /**
- * The published `area-true-treemap` package is not a d3 drop-in: instead of a `.sum()` accessor it
- * reads each leaf's area from `attributes[areaMetric]` and sums non-leaf values from its children.
- * CodeCharta's area value is therefore precomputed with the existing `calculateAreaValue` and
- * stored in the node's attributes under this internal key, which is then passed as `areaMetric`.
- */
-const AREA_VALUE_KEY = "__areaValue"
-
-/**
- * CodeCharta's `margin` is a pixel-based padding (UI range 1..100, default 50) while the package
- * expects a relative fraction (0..1) of the shorter canvas side. This factor maps the pixel value
- * into a fraction: the default of 50 becomes 0.025 (2.5%), which lies inside the 0.5%..3% relative
- * gap range recommended by the package author's thesis. A UI margin of 100 yields 5%.
+ * CodeCharta's margin is a pixel value (UI range 1..100, default 50). The layout expects a gap as a
+ * fraction of the map, so one margin step is mapped to 0.05% of the map: the default of 50 becomes
+ * 0.025 (2.5%), a margin of 100 becomes 5%.
  */
 const MARGIN_SCALING_FACTOR = 0.0005
 
-type AreaTrueTreemapDefaults = {
-    margin: number
-    aspectRatio: number
-    collapseFolders: boolean
-    sorting: SortingOption
-    labels: {
-        topLevels: number
-        sizeRatio: number
-        position: LabelPosition
-    }
+/**
+ * Configuration of the improved squarify algorithm following the thesis findings: two layout
+ * passes with margin compensation, children scaled into the folder content, descending order and
+ * re-sorting in the second pass. Sibling gaps follow the margin setting; folder chains stay
+ * unfolded, so every folder remains selectable in CodeCharta.
+ */
+export const layoutDefaults = {
+    numberOfPasses: 2,
+    scale: true,
+    sorting: SortingOption.DESCENDING,
+    order: OrderOption.NEW_ORDER,
+    incrementMargin: false,
+    applySiblingMargin: true,
+    siblingMarginLeavesOnly: false,
+    collapseFolders: false,
+    round: false
+} as const
+
+export type AreaTrueTreemapLayoutDefaults = typeof layoutDefaults
+
+/**
+ * The layout reserves its floor-label strip on the top edge of every labelled folder, while
+ * CodeCharta's FloorLabelDrawer paints labels into a strip on the right edge (the side the
+ * Squarified TreeMap reserves via paddingRight). The laid-out rectangles are therefore rotated by
+ * 90 degrees and mirrored, which moves the reserved strip to the right edge without changing the
+ * layout itself.
+ */
+function rotateRectToRightEdge(x0: number, y0: number, x1: number, y1: number, layoutWidth: number) {
+    const rightEdge = layoutWidth - y0
+    return { x: rightEdge - (y1 - y0), y: x0, width: y1 - y0, height: x1 - x0 }
 }
 
-const areaTrueTreemapDefaults = defaultsJson as AreaTrueTreemapDefaults
+/**
+ * The canvas is sized exactly like the Squarified TreeMap's (see getSquarifiedTreeMap): the base
+ * map is inflated by the estimated margin room and, with floor labels enabled, by the label strips
+ * of the top levels. The layout normalizes its result onto this canvas, which keeps margins, label
+ * strips and building footprints on the same scale the renderer and the label drawer expect.
+ */
+function getLayoutCanvasSize(map: CodeMapNode, state: CcState, enableFloorLabels: boolean, mapSizeResolutionScaling: number) {
+    const { margin } = state.mapState
+    const nodesPerSide = 2 * Math.sqrt(countNodesWithoutBlacklisted(map))
+    const addedLabelSpace = enableFloorLabels ? getAddedFloorLabelSpace(map) : 0
+    return (treeMapSize * 2 + nodesPerSide * margin + addedLabelSpace) * mapSizeResolutionScaling
+}
 
-// The package reserves the label strip on the side given by `labels.position`. CodeCharta draws
-// its floor labels along the right edge of a folder (`x0 + width`), the same side the Squarified
-// TreeMap reserves via `paddingRight`, so the defaults pin the position to "right".
+function countNodesWithoutBlacklisted(map: CodeMapNode) {
+    let nodeCount = 0
+    const visit = (node: CodeMapNode) => {
+        if (!node.isExcluded && !node.isFlattened) {
+            nodeCount++
+        }
+        for (const child of node.children ?? []) {
+            visit(child)
+        }
+    }
+    visit(map)
+    return nodeCount
+}
+
+function getAddedFloorLabelSpace(map: CodeMapNode) {
+    let addedSpace = 0
+    const visit = (node: CodeMapNode, depth: number) => {
+        if (!isLeaf(node)) {
+            addedSpace += depth === 0 ? DEFAULT_PADDING_FLOOR_LABEL_FROM_LEVEL_1 : DEFAULT_PADDING_FLOOR_LABEL_FROM_LEVEL_2
+            for (const child of node.children ?? []) {
+                visit(child, depth + 1)
+            }
+        }
+    }
+    visit(map, 0)
+    return addedSpace
+}
 
 export function createAreaTrueTreemapNodes(map: CodeMapNode, state: CcState, metricData: NodeMetricData[], isDeltaState: boolean): Node[] {
     const mapSizeResolutionScaling = getMapResolutionScaleFactor(state.files)
     const maxHeight = metricData.find(x => x.name === state.mapState.heightMetric)?.maxValue * mapSizeResolutionScaling
     const maxWidth = metricData.find(x => x.name === state.mapState.areaMetric)?.maxValue * mapSizeResolutionScaling
     const heightScale = (treeMapSize * 2) / maxHeight
-    const canvasSize = treeMapSize * 2 * mapSizeResolutionScaling
 
-    const pathToNode = new Map<string, CodeMapNode>()
-    const tree = buildTree(map, state, maxWidth, pathToNode)
+    const { enableFloorLabels } = state.mapState
+    const canvasSize = getLayoutCanvasSize(map, state, enableFloorLabels, mapSizeResolutionScaling)
 
-    const layout = new TreemapLayout(buildConfig(state))
-    const rects = layout.compute(tree, { width: canvasSize, height: canvasSize })
+    const layoutTree = layoutAreaTrueTreemap(map, state, maxWidth, canvasSize, enableFloorLabels)
+    const root = layoutTree.root
+    const layoutWidth = layoutTree.layoutWidth
+    if (layoutWidth <= 0) {
+        return []
+    }
 
-    const nodes: Node[] = [
-        buildNodeFrom({ x: 0, y: 0, width: canvasSize, height: canvasSize, depth: 0 }, map, heightScale, maxHeight, state, isDeltaState)
-    ]
-
-    for (const rect of rects) {
-        const codeMapNode = pathToNode.get(rect.name)
-        if (codeMapNode) {
-            nodes.push(buildNodeFrom(rect, codeMapNode, heightScale, maxHeight, state, isDeltaState))
+    // Rotate the laid-out rectangles onto the CodeCharta orientation (label strip on the right) and
+    // scale them onto the canvas.
+    const layoutToCanvasScale = canvasSize / layoutWidth
+    const nodes: Node[] = []
+    for (const hierarchyNode of root.descendants()) {
+        const { x0, y0, x1, y1 } = hierarchyNode
+        if (!Number.isFinite(x0) || x1 <= x0 || y1 <= y0) {
+            continue
         }
+        const rotated = rotateRectToRightEdge(x0, y0, x1, y1, layoutWidth)
+        nodes.push(
+            buildNodeFrom(
+                {
+                    x: rotated.x * layoutToCanvasScale,
+                    y: rotated.y * layoutToCanvasScale,
+                    width: rotated.width * layoutToCanvasScale,
+                    height: rotated.height * layoutToCanvasScale,
+                    depth: hierarchyNode.depth
+                },
+                hierarchyNode.data,
+                heightScale,
+                maxHeight,
+                state,
+                isDeltaState
+            )
+        )
     }
 
     return nodes
 }
 
-function buildTree(node: CodeMapNode, state: CcState, maxWidth: number, pathToNode: Map<string, CodeMapNode>): TreeNode {
+function layoutAreaTrueTreemap(map: CodeMapNode, state: CcState, maxWidth: number, canvasSize: number, enableFloorLabels: boolean) {
     const { experimentalFeaturesEnabled } = state.preferences
-    const areaValue = calculateAreaValue(node, state, maxWidth, experimentalFeaturesEnabled)
-    const children = (node.children ?? []).map(child => buildTree(child, state, maxWidth, pathToNode))
+    const labelLength = (node: { y0: number; y1: number; depth: number }) =>
+        getFloorLabelPadding(node.y1 - node.y0, node.depth, DEFAULT_FLOOR_LABEL_CONFIG)
 
-    const treeNode: TreeNode = {
-        // `path` is unique per node and is used to map laid-out rectangles back to the original
-        // `CodeMapNode` (the package forwards `name` unchanged as long as `collapseFolders` is off).
-        name: node.path,
-        attributes: { ...(node.attributes ?? {}), [AREA_VALUE_KEY]: areaValue },
-        children: children.length > 0 ? children : undefined
+    // The layout reads the margin as a fraction of the map, while CodeCharta's margin is a pixel
+    // value: the fraction is derived from the intended gap (0.25 map units per UI step).
+    const marginFraction = Math.min(1, (state.mapState.margin * MARGIN_SCALING_FACTOR * treeMapSize * 2) / canvasSize)
+
+    const layout = treemap<CodeMapNode>()
+        .size([canvasSize, canvasSize])
+        .margin(marginFraction)
+        .numberOfPasses(layoutDefaults.numberOfPasses)
+        .scale(layoutDefaults.scale)
+        .sorting(layoutDefaults.sorting)
+        .order(layoutDefaults.order)
+        .incrementMargin(layoutDefaults.incrementMargin)
+        .applySiblingMargin(layoutDefaults.applySiblingMargin)
+        .siblingMarginLeavesOnly(layoutDefaults.siblingMarginLeavesOnly)
+        .collapseFolders(layoutDefaults.collapseFolders)
+        .round(layoutDefaults.round)
+        .floorLabels(enableFloorLabels ? HIERARCHY_LEVELS_WITH_LABLES_UPPER_BOUNDARY : 0)
+        .labelLength(enableFloorLabels ? labelLength : 0)
+        .value(node => (isLeaf(node) ? calculateAreaValue(node, state, maxWidth, experimentalFeaturesEnabled) : 0))
+
+    const root = layout(hierarchy(map))
+    // The layout normalizes onto the requested size; the actual extent can exceed it by a hair
+    // (the margin compensation is approximate), so rotation and scaling use the real extent.
+    let layoutWidth = 0
+    if (Number.isFinite(root.x1)) {
+        for (const node of root.descendants()) {
+            layoutWidth = Math.max(layoutWidth, node.y1 ?? 0)
+        }
     }
 
-    pathToNode.set(node.path, node)
-    return treeNode
-}
-
-function buildConfig(state: CcState) {
-    const { enableFloorLabels } = state.mapState
-    const marginFraction = Math.min(1, state.mapState.margin * MARGIN_SCALING_FACTOR)
-    const { topLevels, sizeRatio, position } = areaTrueTreemapDefaults.labels
-
-    return new TreemapConfigBuilder()
-        .areaMetric(AREA_VALUE_KEY)
-        .margin(marginFraction)
-        .aspectRatio(areaTrueTreemapDefaults.aspectRatio)
-        .collapseFolders(areaTrueTreemapDefaults.collapseFolders)
-        .sorting(areaTrueTreemapDefaults.sorting)
-        .labels(enableFloorLabels ? topLevels : 0, sizeRatio)
-        .labelPosition(position)
-        .build()
+    return { root, layoutWidth }
 }

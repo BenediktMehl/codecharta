@@ -6,8 +6,8 @@ import { TreeMapHelper, treeMapSize } from "./treeMapHelper"
 type SquarifiedTreeMap = { treeMap: HierarchyRectangularNode<CodeMapNode>; height: number; width: number }
 
 const PADDING_SCALING_FACTOR = 0.4
-const DEFAULT_PADDING_FLOOR_LABEL_FROM_LEVEL_1 = 120
-const DEFAULT_PADDING_FLOOR_LABEL_FROM_LEVEL_2 = 95
+export const DEFAULT_PADDING_FLOOR_LABEL_FROM_LEVEL_1 = 120
+export const DEFAULT_PADDING_FLOOR_LABEL_FROM_LEVEL_2 = 95
 const DEFAULT_ROOT_FLOOR_LABEL_SCALING = 0.035
 const DEFAULT_SUB_FLOOR_LABEL_SCALING = 0.028
 // Maps the margin setting to a fraction of the average child footprint side,
