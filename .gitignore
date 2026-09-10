@@ -2,6 +2,10 @@
 codecharta-analyse.sonargraph
 auth.txt
 .cache
+# local npm cache from tool installs (npm i --cache .npm-cache) — large, machine-local
+/.npm-cache/
+# local visual-verification artifacts (screenshots, capture scripts)
+/.visual-check/
 # brand reference — internal corporate palette, must not be committed
 Ideas/brand.png
 # call-graph exports (e.g. analysis.cg.json) — large, generated
