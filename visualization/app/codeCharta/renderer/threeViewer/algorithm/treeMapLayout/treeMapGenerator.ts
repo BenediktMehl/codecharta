@@ -6,8 +6,8 @@ import { TreeMapHelper, treeMapSize } from "./treeMapHelper"
 type SquarifiedTreeMap = { treeMap: HierarchyRectangularNode<CodeMapNode>; height: number; width: number }
 
 const PADDING_SCALING_FACTOR = 0.4
-export const DEFAULT_PADDING_FLOOR_LABEL_FROM_LEVEL_1 = 120
-export const DEFAULT_PADDING_FLOOR_LABEL_FROM_LEVEL_2 = 95
+const DEFAULT_PADDING_FLOOR_LABEL_FROM_LEVEL_1 = 120
+const DEFAULT_PADDING_FLOOR_LABEL_FROM_LEVEL_2 = 95
 const DEFAULT_ROOT_FLOOR_LABEL_SCALING = 0.035
 const DEFAULT_SUB_FLOOR_LABEL_SCALING = 0.028
 // Maps the margin setting to a fraction of the average child footprint side,
@@ -163,7 +163,17 @@ function getSquarifiedTreeMap(map: CodeMapNode, state: CcState, mapSizeResolutio
         mapHeight = treeMapSize * 2
     }
 
-    const addedLabelSpace = getAddedFloorLabelSpace(hierarchyNode, enableFloorLabels)
+    let addedLabelSpace = 0
+    hierarchyNode.eachAfter(node => {
+        if (!isLeaf(node) && enableFloorLabels) {
+            if (node.depth === 0) {
+                addedLabelSpace += DEFAULT_PADDING_FLOOR_LABEL_FROM_LEVEL_1
+            }
+            if (node.depth > 0 && node.depth < HIERARCHY_LEVELS_WITH_LABLES_UPPER_BOUNDARY) {
+                addedLabelSpace += DEFAULT_PADDING_FLOOR_LABEL_FROM_LEVEL_2
+            }
+        }
+    })
 
     const width = (mapWidth + nodesPerSide * margin + addedLabelSpace) * mapSizeResolutionScaling
     const height = (mapHeight + nodesPerSide * margin + addedLabelSpace) * mapSizeResolutionScaling
@@ -200,21 +210,7 @@ function getSquarifiedTreeMap(map: CodeMapNode, state: CcState, mapSizeResolutio
     }
 }
 
-/**
- * Room the map has to reserve for the floor-label strips of the labelled levels. Both layout
- * algorithms size their canvas with it, so switching layouts keeps the map on the same scale.
- */
-export function getAddedFloorLabelSpace(hierarchyNode: HierarchyNode<CodeMapNode>, enableFloorLabels: boolean) {
-    let addedSpace = 0
-    hierarchyNode.eachAfter(node => {
-        if (enableFloorLabels && !isLeaf(node) && node.depth < HIERARCHY_LEVELS_WITH_LABLES_UPPER_BOUNDARY) {
-            addedSpace += node.depth === 0 ? DEFAULT_PADDING_FLOOR_LABEL_FROM_LEVEL_1 : DEFAULT_PADDING_FLOOR_LABEL_FROM_LEVEL_2
-        }
-    })
-    return addedSpace
-}
-
-export function getEstimatedNodesPerSide(hierarchyNode: HierarchyNode<CodeMapNode>) {
+function getEstimatedNodesPerSide(hierarchyNode: HierarchyNode<CodeMapNode>) {
     let totalNodes = 0
     let blacklistedNodes = 0
     hierarchyNode.each(({ data }) => {

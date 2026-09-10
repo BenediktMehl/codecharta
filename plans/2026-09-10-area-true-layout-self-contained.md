@@ -41,8 +41,8 @@ next to its feature instead of changing the shared tree-map code, and the merge 
 - Accepted trade-off: the copied rules have to be kept in sync with `treeMapLayout/` by hand.
 - The unused `AreaTrueTreemapLayoutDefaults` type is gone, so the branch no longer ships a dead
   export of its own.
-- Open: `npm run lint:deadcode` (knip, a CI gate) still reports four unused exports in
-  `treeMapLayout/treeMapGenerator.ts`: the two floor-label padding constants, which were already
-  unused before this work, and `getAddedFloorLabelSpace` and `getEstimatedNodesPerSide`, which the
-  Area-True layout no longer imports. That shared file is deliberately left untouched, so the
-  findings have to be justified in `knip.jsonc` or accepted with the merge.
+- `treeMapLayout/treeMapGenerator.ts` is back to its `main` content: the layout no longer needs
+  the helpers that commit `2bcf41ba6` had exported for it, so the shared tree-map code is untouched
+  and `npm run lint:deadcode` (knip, a CI gate) reports nothing. The canvas the Squarified tree map
+  computes is the same as before, because the extracted helper and the inline code it replaced
+  produce the same value.
