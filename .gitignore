@@ -4,6 +4,10 @@ auth.txt
 .cache
 # scratch space: brand references, local checkouts of other projects — nothing in it belongs in the repo
 Ideas/
+# local npm cache from tool installs (npm i --cache .npm-cache) — large, machine-local
+/.npm-cache/
+# local visual-verification artifacts (screenshots, capture scripts)
+/.visual-check/
 # call-graph exports (e.g. analysis.cg.json) — large, generated
 *.cg.json
 # analyser output written at the analysis root (e.g. dlc.cc.json.gz) — generated, not a tracked fixture
