@@ -1,10 +1,11 @@
 import { DEFAULT_FLOOR_LABEL_CONFIG, getFloorLabelPadding, hierarchy, OrderOption, SortingOption, treemap } from "area-true-treemap"
+import { HierarchyNode } from "d3-hierarchy"
 import { CcState, CodeMapNode, Node, NodeMetricData } from "../../../../model/codeCharta.model"
 import { getMapResolutionScaleFactor, isLeaf } from "../../../../util/codeMapHelper"
 import {
     calculateAreaValue,
-    DEFAULT_PADDING_FLOOR_LABEL_FROM_LEVEL_1,
-    DEFAULT_PADDING_FLOOR_LABEL_FROM_LEVEL_2,
+    getAddedFloorLabelSpace,
+    getEstimatedNodesPerSide,
     HIERARCHY_LEVELS_WITH_LABLES_UPPER_BOUNDARY
 } from "../treeMapLayout/treeMapGenerator"
 import { treeMapSize } from "../treeMapLayout/treeMapHelper"
@@ -50,44 +51,20 @@ function rotateRectToRightEdge(x0: number, y0: number, x1: number, y1: number, l
 }
 
 /**
- * The canvas is sized exactly like the Squarified TreeMap's (see getSquarifiedTreeMap): the base
- * map is inflated by the estimated margin room and, with floor labels enabled, by the label strips
- * of the top levels. The layout normalizes its result onto this canvas, which keeps margins, label
- * strips and building footprints on the same scale the renderer and the label drawer expect.
+ * The canvas is sized with the same helpers the Squarified TreeMap uses, so both layouts span the
+ * same map extent. Building heights do not depend on the layout, so a canvas that grew with the
+ * layout would make the same building look flatter in one layout than in the other.
  */
-function getLayoutCanvasSize(map: CodeMapNode, state: CcState, enableFloorLabels: boolean, mapSizeResolutionScaling: number) {
+function getLayoutCanvasSize(
+    hierarchyNode: HierarchyNode<CodeMapNode>,
+    state: CcState,
+    enableFloorLabels: boolean,
+    mapSizeResolutionScaling: number
+) {
     const { margin } = state.mapState
-    const nodesPerSide = 2 * Math.sqrt(countNodesWithoutBlacklisted(map))
-    const addedLabelSpace = enableFloorLabels ? getAddedFloorLabelSpace(map) : 0
+    const nodesPerSide = getEstimatedNodesPerSide(hierarchyNode)
+    const addedLabelSpace = getAddedFloorLabelSpace(hierarchyNode, enableFloorLabels)
     return (treeMapSize * 2 + nodesPerSide * margin + addedLabelSpace) * mapSizeResolutionScaling
-}
-
-function countNodesWithoutBlacklisted(map: CodeMapNode) {
-    let nodeCount = 0
-    const visit = (node: CodeMapNode) => {
-        if (!node.isExcluded && !node.isFlattened) {
-            nodeCount++
-        }
-        for (const child of node.children ?? []) {
-            visit(child)
-        }
-    }
-    visit(map)
-    return nodeCount
-}
-
-function getAddedFloorLabelSpace(map: CodeMapNode) {
-    let addedSpace = 0
-    const visit = (node: CodeMapNode, depth: number) => {
-        if (!isLeaf(node)) {
-            addedSpace += depth === 0 ? DEFAULT_PADDING_FLOOR_LABEL_FROM_LEVEL_1 : DEFAULT_PADDING_FLOOR_LABEL_FROM_LEVEL_2
-            for (const child of node.children ?? []) {
-                visit(child, depth + 1)
-            }
-        }
-    }
-    visit(map, 0)
-    return addedSpace
 }
 
 export function createAreaTrueTreemapNodes(map: CodeMapNode, state: CcState, metricData: NodeMetricData[], isDeltaState: boolean): Node[] {
@@ -97,9 +74,10 @@ export function createAreaTrueTreemapNodes(map: CodeMapNode, state: CcState, met
     const heightScale = (treeMapSize * 2) / maxHeight
 
     const { enableFloorLabels } = state.mapState
-    const canvasSize = getLayoutCanvasSize(map, state, enableFloorLabels, mapSizeResolutionScaling)
+    const hierNode = hierarchy(map)
+    const canvasSize = getLayoutCanvasSize(hierNode, state, enableFloorLabels, mapSizeResolutionScaling)
 
-    const layoutTree = layoutAreaTrueTreemap(map, state, maxWidth, canvasSize, enableFloorLabels)
+    const layoutTree = layoutAreaTrueTreemap(hierNode, state, maxWidth, canvasSize, enableFloorLabels)
     const root = layoutTree.root
     const layoutWidth = layoutTree.layoutWidth
     if (layoutWidth <= 0) {
@@ -137,7 +115,13 @@ export function createAreaTrueTreemapNodes(map: CodeMapNode, state: CcState, met
     return nodes
 }
 
-function layoutAreaTrueTreemap(map: CodeMapNode, state: CcState, maxWidth: number, canvasSize: number, enableFloorLabels: boolean) {
+function layoutAreaTrueTreemap(
+    hierNode: HierarchyNode<CodeMapNode>,
+    state: CcState,
+    maxWidth: number,
+    canvasSize: number,
+    enableFloorLabels: boolean
+) {
     const { experimentalFeaturesEnabled } = state.preferences
     const labelLength = (node: { y0: number; y1: number; depth: number }) =>
         getFloorLabelPadding(node.y1 - node.y0, node.depth, DEFAULT_FLOOR_LABEL_CONFIG)
@@ -162,7 +146,7 @@ function layoutAreaTrueTreemap(map: CodeMapNode, state: CcState, maxWidth: numbe
         .labelLength(enableFloorLabels ? labelLength : 0)
         .value(node => (isLeaf(node) ? calculateAreaValue(node, state, maxWidth, experimentalFeaturesEnabled) : 0))
 
-    const root = layout(hierarchy(map))
+    const root = layout(hierNode)
     // The layout normalizes onto the requested size; the actual extent can exceed it by a hair
     // (the margin compensation is approximate), so rotation and scaling use the real extent.
     let layoutWidth = 0

@@ -1,7 +1,26 @@
 import { klona } from "klona"
 import { METRIC_DATA, STATE, TEST_FILE_WITH_PATHS } from "../../../../mocks/dataMocks"
-import { CcState, CodeMapNode, Node, NodeMetricData } from "../../../../model/codeCharta.model"
+import { CcState, CodeMapNode, Node, NodeMetricData, NodeType } from "../../../../model/codeCharta.model"
+import { createTreemapNodes } from "../treeMapLayout/treeMapGenerator"
 import { createAreaTrueTreemapNodes, layoutDefaults } from "./areaTrueTreemapGenerator"
+
+function buildFolder(name: string, path: string, children: CodeMapNode[]): CodeMapNode {
+    return { name, path, type: NodeType.FOLDER, attributes: {}, isExcluded: false, isFlattened: false, children }
+}
+
+function buildDeepFolderChain(): CodeMapNode {
+    const deepLeaf: CodeMapNode = {
+        name: "deep leaf",
+        path: "/root/one/two/three/deep leaf",
+        type: NodeType.FILE,
+        attributes: { rloc: 100, mcc: 10, functions: 1 },
+        isExcluded: false,
+        isFlattened: false
+    }
+    return buildFolder("root", "/root", [
+        buildFolder("one", "/root/one", [buildFolder("two", "/root/one/two", [buildFolder("three", "/root/one/two/three", [deepLeaf])])])
+    ])
+}
 
 describe("areaTrueTreemapGenerator", () => {
     let map: CodeMapNode
@@ -107,6 +126,24 @@ describe("areaTrueTreemapGenerator", () => {
                 otherSmallLeaf.y0 === smallLeaf.y0 + smallLeaf.length ||
                 smallLeaf.y0 === otherSmallLeaf.y0 + otherSmallLeaf.length
             expect(shareAnEdge).toBe(false)
+        })
+
+        it("should span the same canvas as the squarified treemap for deep folder chains", () => {
+            // Arrange
+            // Only the top levels carry floor labels, so the canvas must not grow with the folders
+            // below them. A larger canvas would make every building look flatter, because building
+            // heights do not depend on the layout.
+            const deepMap = buildDeepFolderChain()
+            const squarifiedRoot = createTreemapNodes(deepMap, state, metricData, false).find(node => node.mapNodeDepth === 0)
+
+            // Act
+            const areaTrueRoot = createAreaTrueTreemapNodes(deepMap, state, metricData, false).find(node => node.mapNodeDepth === 0)
+
+            // Assert
+            expect(squarifiedRoot).toBeDefined()
+            expect(areaTrueRoot).toBeDefined()
+            expect(areaTrueRoot.width / squarifiedRoot.width).toBeCloseTo(1, 1)
+            expect(areaTrueRoot.length / squarifiedRoot.length).toBeCloseTo(1, 1)
         })
     })
 
