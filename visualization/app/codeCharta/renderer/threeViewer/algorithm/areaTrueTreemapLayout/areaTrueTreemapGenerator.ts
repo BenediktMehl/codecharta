@@ -1,5 +1,12 @@
-import { DEFAULT_FLOOR_LABEL_CONFIG, getFloorLabelPadding, hierarchy, OrderOption, SortingOption, treemap } from "area-true-treemap"
-import { HierarchyNode } from "d3-hierarchy"
+import {
+    DEFAULT_FLOOR_LABEL_CONFIG,
+    getFloorLabelPadding,
+    type HierarchyNode,
+    hierarchy,
+    OrderOption,
+    SortingOption,
+    treemap
+} from "area-true-treemap"
 import { CcState, CodeMapNode, Node, NodeMetricData } from "../../../../model/codeCharta.model"
 import { getMapResolutionScaleFactor, isLeaf } from "../../../../util/codeMapHelper"
 import { buildNodeFrom } from "./areaTrueTreemapHelper"
