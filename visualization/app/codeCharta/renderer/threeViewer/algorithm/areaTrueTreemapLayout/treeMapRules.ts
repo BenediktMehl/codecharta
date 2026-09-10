@@ -6,7 +6,7 @@
  * The copy is deliberate: the Area-True layout must stay independent of the Squarified layout so it
  * can be reviewed and merged on its own. When the originals change, this file has to change too.
  */
-import { HierarchyNode } from "d3-hierarchy"
+import type { HierarchyNode } from "area-true-treemap"
 import { Vector3 } from "three"
 import { edgesSelector } from "../../../../lenses/dependency/dependencyLens.facade"
 import { CcState, CodeMapNode, MapState } from "../../../../model/codeCharta.model"
