@@ -145,6 +145,25 @@ function countNodes(map: CodeMapNode) {
     return count
 }
 
+// A committed 1.x map keeps the real-file path of this harness in the suite: decorating the paths,
+// deriving the metric data and laying the map out twice all happen on every test run.
+const SAMPLE_MAP = "visualization/app/codeCharta/resources/sample1_legacy_1_2.cc.json"
+const SAMPLE_MAP_LEAVES = 4
+
+describe("area-true treemap on a real map file", () => {
+    it("should lay out every leaf of the sample map with a positive area inside the map", () => {
+        // Act
+        const result = run("sample1_legacy_1_2", SAMPLE_MAP)
+
+        // Assert
+        expect(result.positiveLeaves).toBe(SAMPLE_MAP_LEAVES)
+        expect(result.area.leafRects).toBe(SAMPLE_MAP_LEAVES)
+        expect(result.area.vanished).toBe(0)
+        expect(result.area.zeroAreaRects).toBe(0)
+        expect(result.area.outOfBounds).toBe(0)
+    })
+})
+
 // Opt-in: loading and laying out the large showcase maps (up to ~44 MB / 130k nodes) takes a
 // few seconds and hundreds of MB, so this suite only runs with CC_LARGE_MAPS_FILTER set, e.g.
 // CC_LARGE_MAPS_FILTER=junit5 npm test -- areaTrueTreemapLargeMaps
@@ -153,10 +172,15 @@ const selectedFiles = SHOWCASE_FILES.filter(file => file.includes(LARGE_MAPS_FIL
 
 ;(LARGE_MAPS_FILTER.length > 0 ? describe : describe.skip)("area-true treemap on real showcase maps", () => {
     it("should lay out every showcase map without zero-area or out-of-bounds rectangles", () => {
+        // Arrange
         jest.setTimeout(600_000)
+
+        // Act
         const results = selectedFiles.map(file => run(file.split("/")[6] ?? file, file))
         mkdirSync(dirname(REPORT_PATH), { recursive: true })
         writeFileSync(REPORT_PATH, JSON.stringify(results, null, 4))
+
+        // Assert
         expect(results.filter(result => result.area.zeroAreaRects > 0 || result.area.outOfBounds > 0)).toEqual([])
     })
 })

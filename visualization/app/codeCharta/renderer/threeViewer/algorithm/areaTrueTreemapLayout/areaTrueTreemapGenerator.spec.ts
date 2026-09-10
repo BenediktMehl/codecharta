@@ -8,6 +8,11 @@ function buildFolder(name: string, path: string, children: CodeMapNode[]): CodeM
     return { name, path, type: NodeType.FOLDER, attributes: {}, isExcluded: false, isFlattened: false, children }
 }
 
+function areaOfRoot(nodes: Node[]): number {
+    const root = nodes.find(node => node.mapNodeDepth === 0)
+    return root.width * root.length
+}
+
 function buildDeepFolderChain(): CodeMapNode {
     const deepLeaf: CodeMapNode = {
         name: "deep leaf",
@@ -86,10 +91,12 @@ describe("areaTrueTreemapGenerator", () => {
 
         it("should reserve folder label space when enableFloorLabels is enabled", () => {
             // Arrange
-            const nodesWithLabels: Node[] = createAreaTrueTreemapNodes(map, state, metricData, false)
+            const stateWithLabels = klona(state)
+            stateWithLabels.mapState.enableFloorLabels = true
             state.mapState.enableFloorLabels = false
 
             // Act
+            const nodesWithLabels: Node[] = createAreaTrueTreemapNodes(map, stateWithLabels, metricData, false)
             const nodesWithoutLabels: Node[] = createAreaTrueTreemapNodes(map, state, metricData, false)
 
             // Assert
@@ -104,6 +111,8 @@ describe("areaTrueTreemapGenerator", () => {
                     nodeWithLabel.width !== nodeWithoutLabel.width ||
                     nodeWithLabel.length !== nodeWithoutLabel.length
             ).toBe(true)
+            // The canvas reserves the strips, so the labelled map spans more than the unlabelled one.
+            expect(areaOfRoot(nodesWithLabels)).toBeGreaterThan(areaOfRoot(nodesWithoutLabels))
         })
 
         it("should separate sibling leaves by a gap because sibling margins are on", () => {
@@ -120,12 +129,16 @@ describe("areaTrueTreemapGenerator", () => {
 
             expect(smallLeaf).toBeDefined()
             expect(otherSmallLeaf).toBeDefined()
-            const shareAnEdge =
-                otherSmallLeaf.x0 === smallLeaf.x0 + smallLeaf.width ||
-                smallLeaf.x0 === otherSmallLeaf.x0 + otherSmallLeaf.width ||
-                otherSmallLeaf.y0 === smallLeaf.y0 + smallLeaf.length ||
-                smallLeaf.y0 === otherSmallLeaf.y0 + otherSmallLeaf.length
-            expect(shareAnEdge).toBe(false)
+            // The gap is the distance the two rectangles keep apart on the axis they are separated on.
+            const horizontalGap = Math.max(
+                smallLeaf.x0 - (otherSmallLeaf.x0 + otherSmallLeaf.width),
+                otherSmallLeaf.x0 - (smallLeaf.x0 + smallLeaf.width)
+            )
+            const verticalGap = Math.max(
+                smallLeaf.y0 - (otherSmallLeaf.y0 + otherSmallLeaf.length),
+                otherSmallLeaf.y0 - (smallLeaf.y0 + smallLeaf.length)
+            )
+            expect(Math.max(horizontalGap, verticalGap)).toBeGreaterThan(0)
         })
 
         it("should span the same canvas as the squarified treemap for deep folder chains", () => {
