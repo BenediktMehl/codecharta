@@ -36,8 +36,6 @@ export const layoutDefaults = {
     round: false
 } as const
 
-export type AreaTrueTreemapLayoutDefaults = typeof layoutDefaults
-
 /**
  * The layout reserves its floor-label strip on the top edge of every labelled folder, while
  * CodeCharta's FloorLabelDrawer paints labels into a strip on the right edge (the side the

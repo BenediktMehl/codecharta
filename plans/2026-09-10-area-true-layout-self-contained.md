@@ -39,8 +39,10 @@ next to its feature instead of changing the shared tree-map code, and the merge 
 - Verification: 428 suites / 2972 tests / 45 snapshots green with the coverage gate met, `tsc`
   unchanged (2 pre-existing errors in the area-true generator), `depcruise` clean.
 - Accepted trade-off: the copied rules have to be kept in sync with `treeMapLayout/` by hand.
-- Open: `npm run lint:deadcode` (knip, a CI gate) reports the two floor-label constants and the
-  unused `AreaTrueTreemapLayoutDefaults` type on this branch already, and with the copy
-  `getAddedFloorLabelSpace` and `getEstimatedNodesPerSide` are unused exports as well. Removing the
-  four `export` keywords in `treeMapLayout/treeMapGenerator.ts` and the dead type line would turn the
-  gate green — deliberately not done here, because it would change shared code.
+- The unused `AreaTrueTreemapLayoutDefaults` type is gone, so the branch no longer ships a dead
+  export of its own.
+- Open: `npm run lint:deadcode` (knip, a CI gate) still reports four unused exports in
+  `treeMapLayout/treeMapGenerator.ts`: the two floor-label padding constants, which were already
+  unused before this work, and `getAddedFloorLabelSpace` and `getEstimatedNodesPerSide`, which the
+  Area-True layout no longer imports. That shared file is deliberately left untouched, so the
+  findings have to be justified in `knip.jsonc` or accepted with the merge.
