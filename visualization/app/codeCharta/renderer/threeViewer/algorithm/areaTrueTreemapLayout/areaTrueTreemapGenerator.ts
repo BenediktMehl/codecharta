@@ -2,14 +2,14 @@ import { DEFAULT_FLOOR_LABEL_CONFIG, getFloorLabelPadding, hierarchy, OrderOptio
 import { HierarchyNode } from "d3-hierarchy"
 import { CcState, CodeMapNode, Node, NodeMetricData } from "../../../../model/codeCharta.model"
 import { getMapResolutionScaleFactor, isLeaf } from "../../../../util/codeMapHelper"
+import { buildNodeFrom } from "./areaTrueTreemapHelper"
 import {
     calculateAreaValue,
     getAddedFloorLabelSpace,
     getEstimatedNodesPerSide,
-    HIERARCHY_LEVELS_WITH_LABLES_UPPER_BOUNDARY
-} from "../treeMapLayout/treeMapGenerator"
-import { treeMapSize } from "../treeMapLayout/treeMapHelper"
-import { buildNodeFrom } from "./areaTrueTreemapHelper"
+    HIERARCHY_LEVELS_WITH_LABLES_UPPER_BOUNDARY,
+    treeMapSize
+} from "./treeMapRules"
 
 /**
  * CodeCharta's margin is a pixel value (UI range 1..100, default 50). The layout expects a gap as a
