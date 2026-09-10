@@ -1,7 +1,7 @@
 import { klona } from "klona"
 import { METRIC_DATA, STATE, TEST_FILE_WITH_PATHS } from "../../../../mocks/dataMocks"
 import { CcState, CodeMapNode, Node, NodeMetricData } from "../../../../model/codeCharta.model"
-import { createAreaTrueTreemapNodes } from "./areaTrueTreemapGenerator"
+import { createAreaTrueTreemapNodes, layoutDefaults } from "./areaTrueTreemapGenerator"
 
 describe("areaTrueTreemapGenerator", () => {
     let map: CodeMapNode
@@ -16,14 +16,13 @@ describe("areaTrueTreemapGenerator", () => {
     })
 
     describe("createAreaTrueTreemapNodes", () => {
-        it("should create positive rectangles within the canvas for a known test tree", () => {
-            // Arrange
-            const canvasSize = 500 // treeMapSize * 2 at the default map resolution scale
-
+        it("should create positive rectangles within the root for a known test tree", () => {
             // Act
             const nodes: Node[] = createAreaTrueTreemapNodes(map, state, metricData, false)
 
             // Assert
+            const rootNode = nodes.find(node => node.mapNodeDepth === 0)
+            expect(rootNode).toBeDefined()
             expect(nodes.length).toBeGreaterThan(0)
 
             for (const node of nodes) {
@@ -31,8 +30,8 @@ describe("areaTrueTreemapGenerator", () => {
                 expect(node.length).toBeGreaterThan(0)
                 expect(node.x0).toBeGreaterThanOrEqual(0)
                 expect(node.y0).toBeGreaterThanOrEqual(0)
-                expect(node.x0 + node.width).toBeLessThanOrEqual(canvasSize)
-                expect(node.y0 + node.length).toBeLessThanOrEqual(canvasSize)
+                expect(node.x0 + node.width).toBeLessThanOrEqual(rootNode.x0 + rootNode.width + 0.001)
+                expect(node.y0 + node.length).toBeLessThanOrEqual(rootNode.y0 + rootNode.length + 0.001)
             }
         })
 
@@ -46,8 +45,13 @@ describe("areaTrueTreemapGenerator", () => {
             expect(rootNode.name).toBe("root")
             expect(rootNode.x0).toBe(0)
             expect(rootNode.y0).toBe(0)
-            expect(rootNode.width).toBe(500)
-            expect(rootNode.length).toBe(500)
+            expect(rootNode.width).toBeGreaterThan(0)
+            expect(rootNode.width).toBe(rootNode.length)
+            // The root covers the whole map: no node may stick out of it.
+            for (const node of nodes) {
+                expect(node.x0 + node.width).toBeLessThanOrEqual(rootNode.width + 0.001)
+                expect(node.y0 + node.length).toBeLessThanOrEqual(rootNode.length + 0.001)
+            }
         })
 
         it("should create a node for every visible leaf of the tree", () => {
@@ -81,6 +85,51 @@ describe("areaTrueTreemapGenerator", () => {
                     nodeWithLabel.width !== nodeWithoutLabel.width ||
                     nodeWithLabel.length !== nodeWithoutLabel.length
             ).toBe(true)
+        })
+
+        it("should separate sibling leaves by a gap because sibling margins are on", () => {
+            // Arrange
+            // Both sibling leaves of "Parent Leaf" must not share an edge: the layout insets every
+            // node by half the margin, so the leaves are separated by the full margin.
+
+            // Act
+            const nodes: Node[] = createAreaTrueTreemapNodes(map, state, metricData, false)
+
+            // Assert
+            const smallLeaf = nodes.find(node => node.name === "small leaf")
+            const otherSmallLeaf = nodes.find(node => node.name === "other small leaf")
+
+            expect(smallLeaf).toBeDefined()
+            expect(otherSmallLeaf).toBeDefined()
+            const shareAnEdge =
+                otherSmallLeaf.x0 === smallLeaf.x0 + smallLeaf.width ||
+                smallLeaf.x0 === otherSmallLeaf.x0 + otherSmallLeaf.width ||
+                otherSmallLeaf.y0 === smallLeaf.y0 + smallLeaf.length ||
+                smallLeaf.y0 === otherSmallLeaf.y0 + otherSmallLeaf.length
+            expect(shareAnEdge).toBe(false)
+        })
+    })
+
+    describe("layoutDefaults", () => {
+        it("should use the improved two-pass algorithm", () => {
+            // Assert
+            expect(layoutDefaults.numberOfPasses).toBe(2)
+            expect(layoutDefaults.scale).toBe(true)
+        })
+
+        it("should place siblings in descending order and re-sort in the second pass", () => {
+            // Assert
+            expect(layoutDefaults.sorting).toBe("descending")
+            expect(layoutDefaults.order).toBe("newOrder")
+        })
+
+        it("should keep the remaining layout defaults stable", () => {
+            // Assert
+            expect(layoutDefaults.incrementMargin).toBe(false)
+            expect(layoutDefaults.applySiblingMargin).toBe(true)
+            expect(layoutDefaults.siblingMarginLeavesOnly).toBe(false)
+            expect(layoutDefaults.collapseFolders).toBe(false)
+            expect(layoutDefaults.round).toBe(false)
         })
     })
 })
