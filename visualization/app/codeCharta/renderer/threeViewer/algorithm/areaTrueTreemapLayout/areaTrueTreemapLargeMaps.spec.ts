@@ -146,12 +146,15 @@ function countNodes(map: CodeMapNode) {
 }
 
 // Opt-in: loading and laying out the large showcase maps (up to ~44 MB / 130k nodes) takes a
-// few seconds and hundreds of MB, so this suite only runs when the skip is removed.
-// Maps: gh-pages/public/assets/ccjson/showcase/{httpd,junit4,junit5,aoo,netbeans}/*.cc.json
-describe.skip("area-true treemap on real showcase maps", () => {
+// few seconds and hundreds of MB, so this suite only runs with CC_LARGE_MAPS_FILTER set, e.g.
+// CC_LARGE_MAPS_FILTER=junit5 npm test -- areaTrueTreemapLargeMaps
+const LARGE_MAPS_FILTER = process.env.CC_LARGE_MAPS_FILTER ?? ""
+const selectedFiles = SHOWCASE_FILES.filter(file => file.includes(LARGE_MAPS_FILTER))
+
+;(LARGE_MAPS_FILTER.length > 0 ? describe : describe.skip)("area-true treemap on real showcase maps", () => {
     it("should lay out every showcase map without zero-area or out-of-bounds rectangles", () => {
         jest.setTimeout(600_000)
-        const results = SHOWCASE_FILES.map(file => run(file.split("/")[6] ?? file, file))
+        const results = selectedFiles.map(file => run(file.split("/")[6] ?? file, file))
         mkdirSync(dirname(REPORT_PATH), { recursive: true })
         writeFileSync(REPORT_PATH, JSON.stringify(results, null, 4))
         expect(results.filter(result => result.area.zeroAreaRects > 0 || result.area.outOfBounds > 0)).toEqual([])

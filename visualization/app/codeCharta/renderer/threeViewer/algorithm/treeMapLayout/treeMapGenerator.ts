@@ -163,17 +163,7 @@ function getSquarifiedTreeMap(map: CodeMapNode, state: CcState, mapSizeResolutio
         mapHeight = treeMapSize * 2
     }
 
-    let addedLabelSpace = 0
-    hierarchyNode.eachAfter(node => {
-        if (!isLeaf(node) && enableFloorLabels) {
-            if (node.depth === 0) {
-                addedLabelSpace += DEFAULT_PADDING_FLOOR_LABEL_FROM_LEVEL_1
-            }
-            if (node.depth > 0 && node.depth < HIERARCHY_LEVELS_WITH_LABLES_UPPER_BOUNDARY) {
-                addedLabelSpace += DEFAULT_PADDING_FLOOR_LABEL_FROM_LEVEL_2
-            }
-        }
-    })
+    const addedLabelSpace = getAddedFloorLabelSpace(hierarchyNode, enableFloorLabels)
 
     const width = (mapWidth + nodesPerSide * margin + addedLabelSpace) * mapSizeResolutionScaling
     const height = (mapHeight + nodesPerSide * margin + addedLabelSpace) * mapSizeResolutionScaling
@@ -210,7 +200,21 @@ function getSquarifiedTreeMap(map: CodeMapNode, state: CcState, mapSizeResolutio
     }
 }
 
-function getEstimatedNodesPerSide(hierarchyNode: HierarchyNode<CodeMapNode>) {
+/**
+ * Room the map has to reserve for the floor-label strips of the labelled levels. Both layout
+ * algorithms size their canvas with it, so switching layouts keeps the map on the same scale.
+ */
+export function getAddedFloorLabelSpace(hierarchyNode: HierarchyNode<CodeMapNode>, enableFloorLabels: boolean) {
+    let addedSpace = 0
+    hierarchyNode.eachAfter(node => {
+        if (enableFloorLabels && !isLeaf(node) && node.depth < HIERARCHY_LEVELS_WITH_LABLES_UPPER_BOUNDARY) {
+            addedSpace += node.depth === 0 ? DEFAULT_PADDING_FLOOR_LABEL_FROM_LEVEL_1 : DEFAULT_PADDING_FLOOR_LABEL_FROM_LEVEL_2
+        }
+    })
+    return addedSpace
+}
+
+export function getEstimatedNodesPerSide(hierarchyNode: HierarchyNode<CodeMapNode>) {
     let totalNodes = 0
     let blacklistedNodes = 0
     hierarchyNode.each(({ data }) => {
