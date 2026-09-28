@@ -13,6 +13,7 @@ const RADIAL_LAYOUTS = new Set([LayoutAlgorithm.Sunburst, LayoutAlgorithm.Radial
 
 const LAYOUT_DESCRIPTIONS: Record<LayoutAlgorithm, string> = {
     [LayoutAlgorithm.SquarifiedTreeMap]: "Folders nest inside each other and every bit of floor is used.",
+    [LayoutAlgorithm.AreaTrueTreemap]: "Folders nest like the Squarified TreeMap, each one given exactly its true share of the floor.",
     [LayoutAlgorithm.StreetMap]: "Folders become streets, files line up along them.",
     [LayoutAlgorithm.TreeMapStreet]: "Streets for the upper folders, treemaps near the files.",
     [LayoutAlgorithm.Sunburst]: "Folders as rings around the centre, drawn flat without heights.",
