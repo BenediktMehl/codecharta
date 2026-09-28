@@ -10,8 +10,7 @@ jest.mock("../../../renderModel/accumulatedData/accumulatedData.selector", () =>
             path: "/root/Anode",
             type: "File",
             attributes: { theHeight: 100 },
-            isExcluded: false,
-            isFlattened: false
+            isExcluded: false
         }
     })
 }))
@@ -41,8 +40,7 @@ describe("areaTrueTreemapHelper", () => {
             type: NodeType.FILE,
             attributes: { mcc: 100, rloc: 30 },
             edgeAttributes: {},
-            isExcluded: false,
-            isFlattened: false
+            isExcluded: false
         }
     })
 
@@ -132,7 +130,6 @@ describe("areaTrueTreemapHelper", () => {
             attributes: { mcc: 100 },
             edgeAttributes: {},
             isExcluded: false,
-            isFlattened: false,
             children: [leaf]
         }
 
@@ -159,7 +156,7 @@ describe("areaTrueTreemapHelper", () => {
     it("should mark a flattened node as flat", () => {
         // Arrange
         const rect: AreaTrueTreemapRect = { x: 0, y: 0, width: 100, height: 40, depth: 1 }
-        leaf.isFlattened = true
+        state.sharedView.flattenedNodes = [{ path: "/root/leaf" }]
 
         // Act
         const node = buildNode(rect)

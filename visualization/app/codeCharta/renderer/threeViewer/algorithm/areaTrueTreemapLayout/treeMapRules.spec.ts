@@ -4,7 +4,7 @@ import { edgesSelector } from "../../../../lenses/dependency/dependencyLens.faca
 import { STATE } from "../../../../mocks/dataMocks"
 import { CcState, CodeMapNode, ColorMode, EdgeVisibility, NodeType } from "../../../../model/codeCharta.model"
 import { clone } from "../../../../util/clone"
-import { searchedNodePathsSelector } from "../../../renderModel/renderModel.facade"
+import { flattenPredicateSelector, searchedNodePathsSelector } from "../../../renderModel/renderModel.facade"
 import { TreeMapHelper } from "../treeMapLayout/treeMapHelper"
 import {
     calculateAreaValue,
@@ -18,7 +18,10 @@ import {
     resolveHeightValue
 } from "./treeMapRules"
 
-jest.mock("../../../renderModel/renderModel.facade", () => ({ searchedNodePathsSelector: jest.fn() }))
+jest.mock("../../../renderModel/renderModel.facade", () => ({
+    flattenPredicateSelector: jest.fn(),
+    searchedNodePathsSelector: jest.fn()
+}))
 jest.mock("../../../../lenses/dependency/store/edges.selector", () => ({ edgesSelector: jest.fn() }))
 
 const INVERTED_DIRECTION_DESCRIPTOR = {
@@ -31,11 +34,11 @@ const INVERTED_DIRECTION_DESCRIPTOR = {
 }
 
 function buildLeaf(name: string, path: string, attributes: Record<string, number> = {}): CodeMapNode {
-    return { name, path, type: NodeType.FILE, attributes, edgeAttributes: {}, isExcluded: false, isFlattened: false }
+    return { name, path, type: NodeType.FILE, attributes, edgeAttributes: {}, isExcluded: false }
 }
 
 function buildFolder(name: string, path: string, children: CodeMapNode[]): CodeMapNode {
-    return { name, path, type: NodeType.FOLDER, attributes: {}, edgeAttributes: {}, isExcluded: false, isFlattened: false, children }
+    return { name, path, type: NodeType.FOLDER, attributes: {}, edgeAttributes: {}, isExcluded: false, children }
 }
 
 describe("treeMapRules", () => {
@@ -58,7 +61,12 @@ describe("treeMapRules", () => {
         state.sharedView.focusedNodePath = []
         ;(edgesSelector as unknown as jest.Mock).mockReturnValue([])
         ;(searchedNodePathsSelector as unknown as jest.Mock).mockReturnValue(new Set())
+        ;(flattenPredicateSelector as unknown as jest.Mock).mockReturnValue(() => false)
     })
+
+    function setFlattenedPaths(...paths: string[]) {
+        ;(flattenPredicateSelector as unknown as jest.Mock).mockReturnValue((node: CodeMapNode) => paths.includes(node.path))
+    }
 
     describe("getAddedFloorLabelSpace", () => {
         it("should add the strip of the root and of every labelled folder", () => {
@@ -113,11 +121,10 @@ describe("treeMapRules", () => {
             expect(nodesPerSide).toBeCloseTo(2 * Math.sqrt(3))
         })
 
-        it("should leave excluded and flattened nodes out of the estimate", () => {
+        it("should leave excluded nodes out of the estimate", () => {
             // Arrange
             const excluded = { ...buildLeaf("a", "/root/a"), isExcluded: true }
-            const flattened = { ...buildLeaf("b", "/root/b"), isFlattened: true }
-            const map = buildFolder("root", "/root", [excluded, flattened, buildLeaf("c", "/root/c")])
+            const map = buildFolder("root", "/root", [excluded, buildLeaf("b", "/root/b")])
 
             // Act
             const nodesPerSide = getEstimatedNodesPerSide(hierarchy(map))
@@ -414,13 +421,12 @@ describe("treeMapRules", () => {
     })
 
     describe("isNodeFlat", () => {
-        it("should flatten a node that is flattened in the blacklist", () => {
+        it("should flatten a node the flatten rules match", () => {
             // Arrange
-            const flattened = buildLeaf("a", "/root/a")
-            flattened.isFlattened = true
+            setFlattenedPaths("/root/a")
 
             // Act
-            const flat = isNodeFlat(flattened, state)
+            const flat = isNodeFlat(buildLeaf("a", "/root/a"), state)
 
             // Assert
             expect(flat).toBe(true)

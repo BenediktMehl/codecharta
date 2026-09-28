@@ -5,7 +5,7 @@ import { createTreemapNodes } from "../treeMapLayout/treeMapGenerator"
 import { createAreaTrueTreemapNodes, layoutDefaults } from "./areaTrueTreemapGenerator"
 
 function buildFolder(name: string, path: string, children: CodeMapNode[]): CodeMapNode {
-    return { name, path, type: NodeType.FOLDER, attributes: {}, isExcluded: false, isFlattened: false, children }
+    return { name, path, type: NodeType.FOLDER, attributes: {}, isExcluded: false, children }
 }
 
 function areaOfRoot(nodes: Node[]): number {
@@ -19,8 +19,7 @@ function buildDeepFolderChain(): CodeMapNode {
         path: "/root/one/two/three/deep leaf",
         type: NodeType.FILE,
         attributes: { rloc: 100, mcc: 10, functions: 1 },
-        isExcluded: false,
-        isFlattened: false
+        isExcluded: false
     }
     return buildFolder("root", "/root", [
         buildFolder("one", "/root/one", [buildFolder("two", "/root/one/two", [buildFolder("three", "/root/one/two/three", [deepLeaf])])])

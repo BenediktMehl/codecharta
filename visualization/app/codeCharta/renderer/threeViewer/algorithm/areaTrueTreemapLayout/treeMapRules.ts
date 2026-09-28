@@ -13,7 +13,7 @@ import { CcState, CodeMapNode, MapState } from "../../../../model/codeCharta.mod
 import { getMapResolutionScaleFactor, isLeaf } from "../../../../util/codeMapHelper"
 import { getColorByMetricValue } from "../../../../util/color/gradientCalculator"
 import { MetricMinMax } from "../../../../util/metric/metricRange"
-import { searchedNodePathsSelector } from "../../../renderModel/renderModel.facade"
+import { flattenPredicateSelector, searchedNodePathsSelector } from "../../../renderModel/renderModel.facade"
 
 export const treeMapSize = 250
 
@@ -37,15 +37,15 @@ export function getAddedFloorLabelSpace(hierarchyNode: HierarchyNode<CodeMapNode
 
 export function getEstimatedNodesPerSide(hierarchyNode: HierarchyNode<CodeMapNode>) {
     let totalNodes = 0
-    let blacklistedNodes = 0
+    let excludedNodes = 0
     hierarchyNode.each(({ data }) => {
-        if (data.isExcluded || data.isFlattened) {
-            blacklistedNodes++
+        if (data.isExcluded) {
+            excludedNodes++
         }
         totalNodes++
     })
 
-    return 2 * Math.sqrt(totalNodes - blacklistedNodes)
+    return 2 * Math.sqrt(totalNodes - excludedNodes)
 }
 
 function isOnlyVisibleInComparisonMap(node: CodeMapNode, mapState: MapState) {
@@ -134,7 +134,9 @@ export function getIncomingEdgePoint(width: number, height: number, length: numb
 }
 
 export function isNodeFlat(codeMapNode: CodeMapNode, state: CcState) {
-    if (codeMapNode.isFlattened) {
+    // The rules come first: a node the user flattened by hand or by metric stays flat whatever the
+    // search pattern and the edge filter say about it.
+    if (flattenPredicateSelector(state)(codeMapNode)) {
         return true
     }
 
